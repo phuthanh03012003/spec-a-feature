@@ -2470,7 +2470,7 @@ Details of a peer evaluation: The instructor may choose to see more details of o
 4. The system validates the parameters and the selected week's nudge eligibility under BR-nudge-eligibility.
 5. The system identifies missing submissions under BR-nudge-submission-status, applies BR-nudge-eligibility and BR-nudge-rate-limit, and displays the candidate recipients and reminder details defined in Associated Information.
 6. The instructor selects one or more candidate recipients and confirms sending the displayed reminders.
-7. The system rechecks access, submission status, eligibility, and the rate limit for each selected recipient immediately before attempting her email (BR-nudge-access, BR-nudge-submission-status, BR-nudge-eligibility, BR-nudge-rate-limit).
+7. The system rechecks access, submission status, eligibility, configuration, the confirmed reminder details, and the rate limit for each selected recipient immediately before attempting her email (BR-nudge-access, BR-nudge-submission-status, BR-nudge-eligibility, BR-nudge-rate-limit).
 8. The system sends each remaining recipient her individual reminder through the Gmail SMTP email service and records the service's acceptance and the send-attempt time.
 9. The system displays the batch outcome, including per-recipient results and totals for accepted, skipped, rejected, and unknown outcomes.
 10. Use case ends.
@@ -2491,8 +2491,8 @@ Details of a peer evaluation: The instructor may choose to see more details of o
 - **4d. The selected artifact's configured due day or due time is unavailable:**
   - 4d1. The system identifies the missing section configuration without inventing a deadline; no email is sent.
   - 4d2. Use case ends.
-- **4e. The section has no assigned rubric for a peer-evaluation nudge:**
-  - 4e1. The system reports that completeness cannot be determined under BR-nudge-submission-status; no recipient list is generated and no email is sent.
+- **4e. The section has no assigned rubric, an empty rubric, or invalid criterion maximum scores for a peer-evaluation nudge:**
+  - 4e1. The system reports the invalid configuration under BR-nudge-submission-status; it does not label students as non-submitters when completeness cannot be determined. No recipient list is generated and no email is sent.
   - 4e2. Use case ends.
 - **5a. A student is not assigned to a team, is inactive, or is no longer enrolled in the selected section:**
   - 5a1. The system excludes her from nudge candidates under BR-nudge-eligibility and BR-team-assignment-required. A teamless student is not labeled a non-submitter when she cannot submit.
@@ -2527,6 +2527,12 @@ Details of a peer evaluation: The instructor may choose to see more details of o
   - 7e1. The system preserves recorded outcomes and does not roll back accepted emails. Selected recipients not yet attempted remain unattempted; an attempt interrupted after mail-service handoff is reported as unknown if acceptance cannot be established.
   - 7e2. On reconnecting, the instructor may retrieve the recorded batch outcome after a fresh BR-nudge-access check. A repeated send request rechecks eligibility and the rate limit; it does not replay prior attempts automatically.
   - 7e3. Use case ends.
+- **7f. A selected recipient's registered email address, displayed due information, or reminder content has changed since confirmation:**
+  - 7f1. The system pauses the remaining batch before another email handoff, retains previous outcomes, and leaves the remaining recipients unattempted without consuming their rate-limit interval.
+  - 7f2. The system refreshes eligible candidates and reminder details at step 5. The instructor must select recipients and confirm the refreshed reminders at step 6, or cancel; the system does not silently send stale or changed reminders.
+- **7g. Required due configuration or a usable peer-evaluation rubric is lost during the batch:**
+  - 7g1. The system stops further sends and identifies the configuration problem as in extension 4d or 4e. It does not continue from stale configuration or label affected students as non-submitters.
+  - 7g2. Prior outcomes are retained and remaining recipients are recorded as unattempted. Use case ends.
 
 **Priority:** High
 **Frequency of Use:** Estimated 1-2 instructor-triggered batches per course section per active week; each batch may include all eligible students in that section.
@@ -2536,6 +2542,7 @@ Details of a peer evaluation: The instructor may choose to see more details of o
 - Selection parameters: one authorized course section, one artifact type, and one reporting week. Week boundaries follow the glossary's Monday-to-Sunday definition. The reporting week identifies the work being reported or evaluated, not the date the reminder is sent. Submission status is assessed separately for each artifact through BR-nudge-submission-status.
 - Due information: for WAR reporting week W, display the section's WAR due day and time in W; for peer evaluation of W, display its peer-evaluation due day and time in the following week. Use the application's existing calendar/time-zone convention for both eligibility checks and displayed dates, and include the time zone in the message. A passed due time is shown as overdue, without treating it as an additional submission lock.
 - Candidate list: show student name, registered email address, selected artifact, reporting week, due date/time, and selection control. Exclusions and outcome details are shown only to authorized instructors under BR-nudge-access. Do not include evaluation scores, public/private comments, or activity descriptions.
+- Confirmation validity: the preview identifies the section, reporting week, artifact type, recipient identities and registered addresses, and the exact reminder content. Recheck these details before each handoff; a changed address or message requires the refreshed preview and new confirmation in extension 7f. Configuration failures use extension 7g. A rubric change triggers recomputation under BR-nudge-submission-status; it does not by itself require a new confirmation if the student remains eligible and the confirmed message and recipient details are unchanged.
 - Reminder content: identify the recipient's own missing artifact, reporting week, course section, due date/time (marked overdue where applicable), and a link to the corresponding authenticated submission page. Apply BR-nudge-access and CO-ferpa to the list, individual messages, results, and logs; never send a shared recipient list or attach submission records. Use the existing Gmail SMTP integration (CI-email-notifications, CO-gmail-smtp).
 - Outcome reporting: "accepted" means accepted by the mail service, not proof of inbox delivery. Every selected recipient is accounted for, including unattempted recipients after an interrupted batch. Audit records include the batch identifier, initiating instructor, section, recipient, artifact, week, attempt timestamp when applicable, and outcome/reason; avoid logging message bodies or educational-record content.
 - Concurrency and recovery: BR-nudge-rate-limit applies across simultaneous confirmations, instructors, and repeated requests. If an outcome or rate-limit record cannot be retained, stop before further mail-service handoffs and report the interruption. Rechecks use the latest committed submission state available immediately before each attempt; a submission committed after that check can still cross with an in-flight email.
